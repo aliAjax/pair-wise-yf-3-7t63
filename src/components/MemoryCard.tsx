@@ -1,7 +1,7 @@
-import type { SmellMemory } from '../utils/constants';
+import type { SmellMemory, RevisitStatus } from '../utils/constants';
 import { getSeasonInfo, getSmellTypeInfo, getEmotionInfo } from '../utils/constants';
-import { formatDate, contrastTextColor } from '../utils/helpers';
-import { Pencil, Trash2, ChevronDown, ChevronUp, Heart } from 'lucide-react';
+import { formatDate, formatDay, contrastTextColor, getRevisitStatus, getRevisitStatusMeta, revisitRelativeLabel } from '../utils/helpers';
+import { Pencil, Trash2, ChevronDown, ChevronUp, Heart, CalendarClock, Check, XCircle } from 'lucide-react';
 
 interface Props {
   memory: SmellMemory;
@@ -10,15 +10,40 @@ interface Props {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMarkRevisited: () => void;
+  onCancelRevisit: () => void;
 }
 
-export default function MemoryCard({ memory, index, isExpanded, onToggle, onEdit, onDelete }: Props) {
+const STATUS_PILL_CLASS: Record<Exclude<RevisitStatus, 'unscheduled'>, string> = {
+  overdue: 'bg-brick-500/10 text-brick-600 border-brick-400/40 hover:bg-brick-500/20',
+  today: 'bg-ochre-100 text-ochre-600 border-ochre-300 hover:bg-ochre-200',
+  upcoming: 'bg-moss-100 text-moss-600 border-moss-200 hover:bg-moss-200/70',
+  later: 'bg-lavender-300/40 text-lavender-600 border-lavender-300 hover:bg-lavender-300/60',
+};
+
+export default function MemoryCard({ memory, index, isExpanded, onToggle, onEdit, onDelete, onMarkRevisited, onCancelRevisit }: Props) {
   const season = getSeasonInfo(memory.season);
   const stype = getSmellTypeInfo(memory.smell_type);
   const emotion = getEmotionInfo(memory.emotion);
 
   const intensityWidth = `${memory.intensity * 10}%`;
   const humidityWidth = `${memory.humidity * 10}%`;
+
+  const tags = memory.tags ?? [];
+  const revisitStatus = getRevisitStatus(memory);
+  const revisitMeta = getRevisitStatusMeta(revisitStatus);
+  const revisitCount = memory.revisit_count ?? 0;
+
+  const statusPill = revisitStatus !== 'unscheduled' && (
+    <button
+      onClick={(e) => { e.stopPropagation(); onMarkRevisited(); }}
+      title="点一下，就算今天回访过"
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${STATUS_PILL_CLASS[revisitStatus]}`}
+    >
+      {revisitMeta.emoji} {revisitMeta.label} · {revisitRelativeLabel(memory)}
+      <Check className="w-3 h-3" />
+    </button>
+  );
 
   return (
     <article
@@ -79,6 +104,11 @@ export default function MemoryCard({ memory, index, isExpanded, onToggle, onEdit
                   <Heart className="w-3 h-3 fill-current" /> 想再闻
                 </span>
               )}
+              {tags.map((t) => (
+                <span key={t} className="scent-tag bg-paper-200 text-ink-700 border border-paper-300">
+                  # {t}
+                </span>
+              ))}
             </div>
 
             <div className="space-y-1.5">
@@ -116,18 +146,21 @@ export default function MemoryCard({ memory, index, isExpanded, onToggle, onEdit
               </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between pt-2 border-t border-paper-200/80">
-              <span className="text-[11px] text-ink-700/50">{formatDate(memory.created_at)}</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggle(); }}
-                className="inline-flex items-center gap-1 text-[11px] text-ochre-600 hover:text-ochre-700 font-medium"
-              >
-                {isExpanded ? (
-                  <><ChevronUp className="w-3.5 h-3.5" /> 收起</>
-                ) : (
-                  <><ChevronDown className="w-3.5 h-3.5" /> 展开回忆</>
-                )}
-              </button>
+            <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-paper-200/80">
+              <span className="text-[11px] text-ink-700/50 shrink-0">{formatDate(memory.created_at)}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                {statusPill}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                  className="inline-flex items-center gap-1 text-[11px] text-ochre-600 hover:text-ochre-700 font-medium shrink-0"
+                >
+                  {isExpanded ? (
+                    <><ChevronUp className="w-3.5 h-3.5" /> 收起</>
+                  ) : (
+                    <><ChevronDown className="w-3.5 h-3.5" /> 展开回忆</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -141,6 +174,55 @@ export default function MemoryCard({ memory, index, isExpanded, onToggle, onEdit
                   {memory.memory_text}
                 </p>
               </div>
+
+              <div className="mt-3 p-4 rounded-xl bg-paper-100/70 border border-paper-200/80">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="font-hand text-lg text-brick-500 inline-flex items-center gap-1.5">
+                    <CalendarClock className="w-4 h-4" /> 回访计划
+                  </span>
+                  {statusPill}
+                </div>
+
+                {revisitStatus === 'unscheduled' ? (
+                  <p className="text-xs text-ink-700/55">
+                    📭 未安排回访 — 点「编辑」可以设置下次回访日期
+                  </p>
+                ) : (
+                  <p className="text-xs text-ink-700/70">
+                    下次回访：<b className="text-ink-800">{formatDay(memory.revisit_date!)}</b>
+                    <span className="text-ink-700/55">（{revisitRelativeLabel(memory)}）</span>
+                  </p>
+                )}
+
+                {memory.revisit_note && (
+                  <p className="mt-1.5 text-xs text-ink-700/70">
+                    备注：<span className="font-serif text-ink-800">{memory.revisit_note}</span>
+                  </p>
+                )}
+
+                <p className="mt-1.5 text-[11px] text-ink-700/55">
+                  已回访 <b className="text-ochre-600">{revisitCount}</b> 次
+                  {memory.last_revisited_at && ` · 最近 ${formatDate(memory.last_revisited_at)}`}
+                </p>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onMarkRevisited(); }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-moss-100 text-moss-600 hover:bg-moss-200/80 transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" /> 今天回访过
+                  </button>
+                  {revisitStatus !== 'unscheduled' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCancelRevisit(); }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-brick-500 hover:bg-brick-500/10 transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" /> 取消回访
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="mt-3 flex items-center justify-between pt-2 border-t border-paper-200/60">
                 <div className="flex items-center gap-1.5 text-[11px] text-ink-700/50">
                   <span>更新于 {formatDate(memory.updated_at)}</span>

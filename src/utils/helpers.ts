@@ -1,4 +1,5 @@
-import type { SmellMemory } from './constants';
+import type { SmellMemory, RevisitStatus } from './constants';
+import { REVISIT_STATUS_META } from './constants';
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
@@ -12,6 +13,72 @@ export function formatDate(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${y}.${m}.${day} ${hh}:${mm}`;
+}
+
+/** 把 'YYYY-MM-DD' 解析为本地日期（避免 UTC 解析造成的日期偏移） */
+export function parseDay(day: string): Date {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
+export function toDayStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** b 相对 a 的天数差（只比较日期部分，忽略时分秒） */
+export function daysBetween(a: Date, b: Date): number {
+  const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((ub - ua) / 86400000);
+}
+
+export function formatDay(day: string): string {
+  const d = parseDay(day);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${dd}`;
+}
+
+/** 回访状态：缺少 revisit_date 的旧记录一律视为「未安排回访」 */
+export function getRevisitStatus(m: SmellMemory, now: Date = new Date()): RevisitStatus {
+  if (!m.revisit_date) return 'unscheduled';
+  const diff = daysBetween(now, parseDay(m.revisit_date));
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff <= 7) return 'upcoming';
+  return 'later';
+}
+
+export function getRevisitStatusMeta(status: RevisitStatus) {
+  return REVISIT_STATUS_META[status];
+}
+
+/** 相对日期描述：逾期 3 天 / 今天 / 3 天后 */
+export function revisitRelativeLabel(m: SmellMemory, now: Date = new Date()): string {
+  if (!m.revisit_date) return '';
+  const diff = daysBetween(now, parseDay(m.revisit_date));
+  if (diff < 0) return `逾期 ${-diff} 天`;
+  if (diff === 0) return '今天';
+  return `${diff} 天后`;
+}
+
+/** 收集所有记忆里出现过的标签（保持出现顺序去重） */
+export function collectTags(memories: SmellMemory[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of memories) {
+    for (const t of m.tags ?? []) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
+  }
+  return out;
 }
 
 export interface Filters {

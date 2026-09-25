@@ -2,6 +2,14 @@ import type { SmellMemory } from '../utils/constants';
 
 const now = Date.now();
 const daysAgo = (d: number) => new Date(now - d * 86400000).toISOString();
+/** 相对今天 d 天后的日期字符串 'YYYY-MM-DD'（负数表示过去） */
+const dayOffset = (d: number) => {
+  const t = new Date(now + d * 86400000);
+  const y = t.getFullYear();
+  const m = String(t.getMonth() + 1).padStart(2, '0');
+  const day = String(t.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export const mockMemories: SmellMemory[] = [
   {
@@ -18,6 +26,11 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(42),
     updated_at: daysAgo(42),
+    tags: ['樟木', '外婆', '衣柜'],
+    revisit_date: dayOffset(-2),
+    revisit_note: '回外婆家时记得再开一次衣柜，顺便问问毛衣的晒法',
+    revisit_count: 1,
+    last_revisited_at: daysAgo(10),
   },
   {
     id: 'mock-002',
@@ -33,6 +46,11 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(28),
     updated_at: daysAgo(28),
+    tags: ['雨季', '校园'],
+    revisit_date: dayOffset(0),
+    revisit_note: '今天如果下雨，去阳台站一会儿',
+    revisit_count: 0,
+    last_revisited_at: null,
   },
   {
     id: 'mock-003',
@@ -48,6 +66,11 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(18),
     updated_at: daysAgo(10),
+    tags: ['图书馆', '考研'],
+    revisit_date: dayOffset(3),
+    revisit_note: '回学校时绕去五楼看一眼',
+    revisit_count: 2,
+    last_revisited_at: daysAgo(10),
   },
   {
     id: 'mock-004',
@@ -63,6 +86,11 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(60),
     updated_at: daysAgo(60),
+    tags: ['中药', '爷爷'],
+    revisit_date: dayOffset(10),
+    revisit_note: '',
+    revisit_count: 0,
+    last_revisited_at: null,
   },
   {
     id: 'mock-005',
@@ -78,6 +106,7 @@ export const mockMemories: SmellMemory[] = [
     want_again: false,
     created_at: daysAgo(100),
     updated_at: daysAgo(55),
+    tags: ['厨房', '室友'],
   },
   {
     id: 'mock-006',
@@ -93,6 +122,11 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(15),
     updated_at: daysAgo(15),
+    tags: ['樱花', '春天'],
+    revisit_date: dayOffset(6),
+    revisit_note: '看看今年的樱花开了没有',
+    revisit_count: 0,
+    last_revisited_at: null,
   },
   {
     id: 'mock-007',
@@ -108,6 +142,7 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(5),
     updated_at: daysAgo(5),
+    tags: ['楼道', '红烧肉'],
   },
   {
     id: 'mock-008',
@@ -123,5 +158,10 @@ export const mockMemories: SmellMemory[] = [
     want_again: true,
     created_at: daysAgo(3),
     updated_at: daysAgo(2),
+    tags: ['海边', '夏天'],
+    revisit_date: dayOffset(1),
+    revisit_note: '',
+    revisit_count: 1,
+    last_revisited_at: daysAgo(2),
   },
 ];

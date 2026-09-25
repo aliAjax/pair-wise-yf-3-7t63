@@ -16,7 +16,29 @@ export interface SmellMemory {
   want_again: boolean;
   created_at: string;
   updated_at: string;
+  /** 用户自定义标签，最多 5 个；旧记录可能缺失 */
+  tags?: string[];
+  /** 下次回访日期 'YYYY-MM-DD'，null/缺失表示未安排回访 */
+  revisit_date?: string | null;
+  /** 回访备注 */
+  revisit_note?: string;
+  /** 已回访次数 */
+  revisit_count?: number;
+  /** 最近一次回访时间 ISO 字符串 */
+  last_revisited_at?: string | null;
 }
+
+export type RevisitStatus = 'unscheduled' | 'overdue' | 'today' | 'upcoming' | 'later';
+
+export const MAX_TAGS = 5;
+
+export const REVISIT_STATUS_META: Record<RevisitStatus, { label: string; emoji: string }> = {
+  unscheduled: { label: '未安排回访', emoji: '📭' },
+  overdue: { label: '已逾期', emoji: '⏰' },
+  today: { label: '今天待回访', emoji: '🌟' },
+  upcoming: { label: '未来七天', emoji: '🗓️' },
+  later: { label: '更晚', emoji: '🌱' },
+};
 
 export const SEASONS: { value: Season; label: string; emoji: string }[] = [
   { value: 'spring', label: '春', emoji: '🌸' },

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Tag, CalendarClock } from 'lucide-react';
 import type { SmellMemory, Season, SmellType, Emotion } from '../utils/constants';
-import { SEASONS, SMELL_TYPES, EMOTIONS } from '../utils/constants';
+import { SEASONS, SMELL_TYPES, EMOTIONS, MAX_TAGS } from '../utils/constants';
 import type { MemoryInput } from '../store/memoryStore';
 
 interface Props {
@@ -22,6 +22,9 @@ const defaultForm: MemoryInput = {
   color_association: '#8B5A2B',
   emotion: 'nostalgic',
   want_again: true,
+  tags: [],
+  revisit_date: null,
+  revisit_note: '',
 };
 
 const intensityTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -29,17 +32,32 @@ const humidityTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: Props) {
   const [form, setForm] = useState<MemoryInput>(defaultForm);
+  const [tagInput, setTagInput] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       if (editingData) {
-        const { id, created_at, updated_at, ...rest } = editingData;
-        void id; void created_at; void updated_at;
-        setForm(rest);
+        // 显式逐字段拷贝：旧记录可能缺少 tags / revisit_* 字段，按未安排回访处理
+        setForm({
+          location: editingData.location,
+          source_guess: editingData.source_guess,
+          intensity: editingData.intensity,
+          humidity: editingData.humidity,
+          season: editingData.season,
+          smell_type: editingData.smell_type,
+          memory_text: editingData.memory_text,
+          color_association: editingData.color_association,
+          emotion: editingData.emotion,
+          want_again: editingData.want_again,
+          tags: editingData.tags ?? [],
+          revisit_date: editingData.revisit_date ?? null,
+          revisit_note: editingData.revisit_note ?? '',
+        });
       } else {
         setForm(defaultForm);
       }
+      setTagInput('');
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -55,6 +73,28 @@ export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: 
 
   const update = <K extends keyof MemoryInput>(key: K, value: MemoryInput[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const addTag = (raw: string) => {
+    const tag = raw.trim().replace(/^#+/, '');
+    if (!tag) return;
+    if (form.tags.includes(tag)) { setTagInput(''); return; }
+    if (form.tags.length >= MAX_TAGS) return;
+    update('tags', [...form.tags, tag]);
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => {
+    update('tags', form.tags.filter((t) => t !== tag));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+      e.preventDefault();
+      addTag(tagInput);
+    } else if (e.key === 'Backspace' && !tagInput && form.tags.length > 0) {
+      removeTag(form.tags[form.tags.length - 1]);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -298,6 +338,97 @@ export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: 
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-paper-200">
+              <span className="w-1.5 h-6 bg-brick-400 rounded-full" />
+              <h3 className="font-hand text-xl text-brick-500">回访计划</h3>
+              <span className="text-[11px] text-ink-700/50 ml-auto">标签、下次回访日期与备注</span>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium text-ink-700 inline-flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5" /> 标签
+                </label>
+                <span className={`text-[11px] ${form.tags.length >= MAX_TAGS ? 'text-brick-500 font-semibold' : 'text-ink-700/50'}`}>
+                  {form.tags.length} / {MAX_TAGS}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-paper-50 border border-paper-300 focus-within:ring-2 focus-within:ring-ochre-400 focus-within:border-transparent transition-all duration-200">
+                {form.tags.map((tag) => (
+                  <span key={tag} className="scent-tag bg-lavender-300/40 text-lavender-600">
+                    # {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-0.5 rounded-full hover:text-brick-500 transition-colors"
+                      aria-label={`移除标签 ${tag}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onBlur={() => addTag(tagInput)}
+                  maxLength={20}
+                  disabled={form.tags.length >= MAX_TAGS}
+                  placeholder={
+                    form.tags.length >= MAX_TAGS
+                      ? '最多 5 个标签'
+                      : form.tags.length === 0
+                        ? '回车添加标签，如：樟木、雨季…'
+                        : '继续添加…'
+                  }
+                  className="flex-1 min-w-[140px] bg-transparent px-2 py-1 text-sm text-ink-800 placeholder-ink-700/40 focus:outline-none disabled:cursor-not-allowed"
+                />
+              </div>
+              <p className="text-[11px] text-ink-700/50 mt-1">回车或逗号添加，最多 {MAX_TAGS} 个；工作台可按标签筛选</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-1.5 inline-flex items-center gap-1">
+                  <CalendarClock className="w-3.5 h-3.5" /> 下次回访日期
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={form.revisit_date ?? ''}
+                    onChange={(e) => update('revisit_date', e.target.value || null)}
+                    className="scent-input flex-1"
+                  />
+                  {form.revisit_date && (
+                    <button
+                      type="button"
+                      onClick={() => update('revisit_date', null)}
+                      className="shrink-0 px-3 py-2.5 rounded-xl text-xs text-brick-500 bg-brick-400/10 hover:bg-brick-400/20 transition-colors"
+                    >
+                      清除
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-ink-700/50 mt-1">
+                  {form.revisit_date ? '到期的气味会出现在主页回访工作台' : '留空表示暂不安排回访'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-1.5">回访备注</label>
+                <input
+                  type="text"
+                  value={form.revisit_note}
+                  onChange={(e) => update('revisit_note', e.target.value)}
+                  placeholder="例如：问问外婆毛衣的晒法"
+                  maxLength={100}
+                  className="scent-input"
+                />
               </div>
             </div>
           </div>
