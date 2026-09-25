@@ -2,6 +2,13 @@ import type { SmellMemory } from '../utils/constants';
 
 const now = Date.now();
 const daysAgo = (d: number) => new Date(now - d * 86400000).toISOString();
+/** 相对今天的日期，'YYYY-MM-DD'；负数=过去，正数=未来 */
+const dayOffset = (d: number) => {
+  const t = new Date(now + d * 86400000);
+  const m = String(t.getMonth() + 1).padStart(2, '0');
+  const day = String(t.getDate()).padStart(2, '0');
+  return `${t.getFullYear()}-${m}-${day}`;
+};
 
 export const mockMemories: SmellMemory[] = [
   {
@@ -16,6 +23,11 @@ export const mockMemories: SmellMemory[] = [
     color_association: '#8B5A2B',
     emotion: 'nostalgic',
     want_again: true,
+    tags: ['外婆', '樟木'],
+    revisit_date: dayOffset(-3),
+    revisit_note: '换季了，想回去看看衣柜有没有发霉。',
+    revisit_count: 2,
+    last_revisited_at: daysAgo(10),
     created_at: daysAgo(42),
     updated_at: daysAgo(42),
   },
@@ -46,6 +58,9 @@ export const mockMemories: SmellMemory[] = [
     color_association: '#9B8AA6',
     emotion: 'melancholy',
     want_again: true,
+    tags: ['考研', '图书馆'],
+    revisit_date: dayOffset(10),
+    revisit_note: '回学校时顺路去五楼坐一会儿。',
     created_at: daysAgo(18),
     updated_at: daysAgo(10),
   },
@@ -61,6 +76,11 @@ export const mockMemories: SmellMemory[] = [
     color_association: '#A0522D',
     emotion: 'warm',
     want_again: true,
+    tags: ['爷爷', '药香', '老街'],
+    revisit_date: dayOffset(0),
+    revisit_note: '路过旧址时站一会儿，闻闻现在的味道。',
+    revisit_count: 1,
+    last_revisited_at: daysAgo(30),
     created_at: daysAgo(60),
     updated_at: daysAgo(60),
   },
@@ -106,6 +126,9 @@ export const mockMemories: SmellMemory[] = [
     color_association: '#CD5C5C',
     emotion: 'warm',
     want_again: true,
+    tags: ['家常', '冬天'],
+    revisit_date: dayOffset(3),
+    revisit_note: '',
     created_at: daysAgo(5),
     updated_at: daysAgo(5),
   },

@@ -15,6 +15,9 @@ export interface MemoryInput {
   color_association: string;
   emotion: Emotion;
   want_again: boolean;
+  tags: string[];
+  revisit_date: string | null;
+  revisit_note: string;
 }
 
 interface MemoryStore {
@@ -22,6 +25,10 @@ interface MemoryStore {
   addMemory: (input: MemoryInput) => void;
   updateMemory: (id: string, input: MemoryInput) => void;
   deleteMemory: (id: string) => void;
+  /** 点一下 = 今天回访过：次数 +1、记录最近时间、本次日程完成 */
+  markRevisited: (id: string) => void;
+  /** 取消回访：清除回访日期，保留次数与历史 */
+  cancelRevisit: (id: string) => void;
   initIfEmpty: () => void;
 }
 
@@ -34,6 +41,8 @@ export const useMemoryStore = create<MemoryStore>()(
         const newMem: SmellMemory = {
           id: generateId(),
           ...input,
+          revisit_count: 0,
+          last_revisited_at: null,
           created_at: now,
           updated_at: now,
         };
@@ -50,6 +59,31 @@ export const useMemoryStore = create<MemoryStore>()(
       },
       deleteMemory: (id) => {
         set({ memories: get().memories.filter((m) => m.id !== id) });
+      },
+      markRevisited: (id) => {
+        const now = new Date().toISOString();
+        set({
+          memories: get().memories.map((m) =>
+            m.id === id
+              ? {
+                  ...m,
+                  revisit_count: (m.revisit_count ?? 0) + 1,
+                  last_revisited_at: now,
+                  revisit_date: null,
+                  updated_at: now,
+                }
+              : m,
+          ),
+        });
+      },
+      cancelRevisit: (id) => {
+        set({
+          memories: get().memories.map((m) =>
+            m.id === id
+              ? { ...m, revisit_date: null, updated_at: new Date().toISOString() }
+              : m,
+          ),
+        });
       },
       initIfEmpty: () => {
         if (get().memories.length === 0) {

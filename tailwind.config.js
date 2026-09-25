@@ -79,7 +79,7 @@ export default {
         },
         expand: {
           '0%': { opacity: '0', maxHeight: '0' },
-          '100%': { opacity: '1', maxHeight: '1000px' },
+          '100%': { opacity: '1', maxHeight: '2000px' },
         }
       },
       animation: {

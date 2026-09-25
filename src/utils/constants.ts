@@ -14,9 +14,21 @@ export interface SmellMemory {
   color_association: string;
   emotion: Emotion;
   want_again: boolean;
+  /** 回访标签，最多 5 个；旧记录可能缺失 */
+  tags?: string[];
+  /** 下次回访日期 'YYYY-MM-DD'；空/缺失 = 未安排回访 */
+  revisit_date?: string | null;
+  /** 回访备注 */
+  revisit_note?: string;
+  /** 已累计回访次数 */
+  revisit_count?: number;
+  /** 最近一次回访时间 ISO；空/缺失 = 从未回访 */
+  last_revisited_at?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export const MAX_TAGS = 5;
 
 export const SEASONS: { value: Season; label: string; emoji: string }[] = [
   { value: 'spring', label: '春', emoji: '🌸' },

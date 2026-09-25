@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Tag } from 'lucide-react';
 import type { SmellMemory, Season, SmellType, Emotion } from '../utils/constants';
-import { SEASONS, SMELL_TYPES, EMOTIONS } from '../utils/constants';
+import { SEASONS, SMELL_TYPES, EMOTIONS, MAX_TAGS } from '../utils/constants';
 import type { MemoryInput } from '../store/memoryStore';
 
 interface Props {
@@ -22,6 +22,9 @@ const defaultForm: MemoryInput = {
   color_association: '#8B5A2B',
   emotion: 'nostalgic',
   want_again: true,
+  tags: [],
+  revisit_date: null,
+  revisit_note: '',
 };
 
 const intensityTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -29,17 +32,26 @@ const humidityTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: Props) {
   const [form, setForm] = useState<MemoryInput>(defaultForm);
+  const [tagInput, setTagInput] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       if (editingData) {
-        const { id, created_at, updated_at, ...rest } = editingData;
-        void id; void created_at; void updated_at;
-        setForm(rest);
+        const { id, created_at, updated_at, revisit_count, last_revisited_at, ...rest } = editingData;
+        void id; void created_at; void updated_at; void revisit_count; void last_revisited_at;
+        // 旧记录可能缺少回访字段，补默认值
+        setForm({
+          ...defaultForm,
+          ...rest,
+          tags: rest.tags ?? [],
+          revisit_date: rest.revisit_date ?? null,
+          revisit_note: rest.revisit_note ?? '',
+        });
       } else {
         setForm(defaultForm);
       }
+      setTagInput('');
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -57,10 +69,23 @@ export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: 
     setForm((f) => ({ ...f, [key]: value }));
   };
 
+  const addTag = () => {
+    const t = tagInput.trim().replace(/^#+/, '');
+    if (!t) return;
+    if (form.tags.includes(t)) { setTagInput(''); return; }
+    if (form.tags.length >= MAX_TAGS) return;
+    update('tags', [...form.tags, t]);
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => {
+    update('tags', form.tags.filter((t) => t !== tag));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.location.trim()) return;
-    onSubmit(form);
+    onSubmit({ ...form, revisit_note: form.revisit_note.trim() });
     onClose();
   };
 
@@ -298,6 +323,107 @@ export default function MemoryModal({ isOpen, onClose, onSubmit, editingData }: 
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-paper-200">
+              <span className="w-1.5 h-6 bg-brick-400 rounded-full" />
+              <h3 className="font-hand text-xl text-brick-500">回访计划</h3>
+              <span className="text-xs text-ink-700/50">· 可选，留空即不安排回访</span>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink-700 mb-1.5">
+                标签 <span className="text-xs text-ink-700/50 font-normal">（最多 {MAX_TAGS} 个，用于工作台筛选）</span>
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-700/40 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+                    }}
+                    maxLength={20}
+                    placeholder={form.tags.length >= MAX_TAGS ? '已达上限，先删除一个标签' : '例如：外婆、老街、雨季'}
+                    disabled={form.tags.length >= MAX_TAGS}
+                    className="scent-input pl-10"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addTag}
+                  disabled={!tagInput.trim() || form.tags.length >= MAX_TAGS}
+                  className="btn-secondary shrink-0 inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-4 h-4" /> 添加
+                </button>
+              </div>
+              {form.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {form.tags.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-lavender-300/40 text-lavender-600"
+                    >
+                      # {t}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(t)}
+                        className="p-0.5 rounded-full hover:bg-lavender-300/60 transition-colors"
+                        aria-label={`删除标签 ${t}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <span className="self-center text-[11px] text-ink-700/45 ml-1">
+                    {form.tags.length}/{MAX_TAGS}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-1.5">下次回访日期</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={form.revisit_date ?? ''}
+                    onChange={(e) => update('revisit_date', e.target.value || null)}
+                    className="scent-input flex-1"
+                  />
+                  {form.revisit_date && (
+                    <button
+                      type="button"
+                      onClick={() => update('revisit_date', null)}
+                      className="btn-secondary shrink-0"
+                    >
+                      清除
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-ink-700/50 mt-1.5">
+                  {form.revisit_date
+                    ? '到日期后会出现在主页的回访工作台'
+                    : '不设置日期 = 未安排回访'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-700 mb-1.5">回访备注</label>
+                <textarea
+                  value={form.revisit_note}
+                  onChange={(e) => update('revisit_note', e.target.value)}
+                  rows={2}
+                  placeholder="例如：换季时回去看看，顺便带上相机"
+                  className="scent-textarea"
+                  style={{ minHeight: '52px' }}
+                />
               </div>
             </div>
           </div>

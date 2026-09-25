@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
 import FilterPanel from '../components/FilterPanel';
 import VisualizationPanel from '../components/VisualizationPanel';
+import RevisitWorkbench from '../components/RevisitWorkbench';
 import MemoryCard from '../components/MemoryCard';
 import MemoryModal from '../components/MemoryModal';
 import { useMemoryStore } from '../store/memoryStore';
@@ -18,7 +19,7 @@ const defaultFilters: Filters = {
 };
 
 export default function Home() {
-  const { memories, initIfEmpty, addMemory, updateMemory, deleteMemory } = useMemoryStore();
+  const { memories, initIfEmpty, addMemory, updateMemory, deleteMemory, markRevisited, cancelRevisit } = useMemoryStore();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -80,6 +81,13 @@ export default function Home() {
 
         <VisualizationPanel memories={filteredMemories} onSelect={scrollToCard} />
 
+        <RevisitWorkbench
+          memories={memories}
+          onMarkRevisited={markRevisited}
+          onCancelRevisit={cancelRevisit}
+          onLocate={scrollToCard}
+        />
+
         <section className="mt-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-hand text-2xl text-ochre-600 flex items-center gap-2">
@@ -126,6 +134,8 @@ export default function Home() {
                     onToggle={() => setExpandedId(expandedId === m.id ? null : m.id)}
                     onEdit={() => openEditModal(m)}
                     onDelete={() => handleDelete(m.id)}
+                    onMarkRevisited={() => markRevisited(m.id)}
+                    onCancelRevisit={() => cancelRevisit(m.id)}
                   />
                 </div>
               ))}

@@ -14,6 +14,67 @@ export function formatDate(iso: string): string {
   return `${y}.${m}.${day} ${hh}:${mm}`;
 }
 
+/** 本地今天，'YYYY-MM-DD' */
+export function todayStr(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** dateStr('YYYY-MM-DD') 相对今天的天数差：负数=已过去，0=今天 */
+export function daysFromToday(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86400000);
+}
+
+export type RevisitStatus = 'unscheduled' | 'overdue' | 'today' | 'upcoming' | 'later';
+
+/** 计算回访状态；旧记录缺少 revisit_date 时按未安排处理 */
+export function getRevisitStatus(m: SmellMemory): RevisitStatus {
+  if (!m.revisit_date) return 'unscheduled';
+  const diff = daysFromToday(m.revisit_date);
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'today';
+  return diff <= 7 ? 'upcoming' : 'later';
+}
+
+export const REVISIT_STATUS_META: Record<RevisitStatus, { label: string; emoji: string }> = {
+  overdue: { label: '已逾期', emoji: '🔴' },
+  today: { label: '今天回访', emoji: '🟢' },
+  upcoming: { label: '未来七天', emoji: '🔵' },
+  later: { label: '更晚', emoji: '⚪' },
+  unscheduled: { label: '未安排', emoji: '➖' },
+};
+
+/** 状态一句话描述，如「逾期 3 天」「2 天后回访」 */
+export function revisitStatusText(m: SmellMemory): string {
+  if (!m.revisit_date) return '未安排回访';
+  const diff = daysFromToday(m.revisit_date);
+  if (diff < 0) return `逾期 ${-diff} 天`;
+  if (diff === 0) return '今天回访';
+  return `${diff} 天后回访`;
+}
+
+/** 'YYYY-MM-DD' -> 'M月D日' */
+export function formatRevisitDate(dateStr: string): string {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${m}月${d}日`;
+}
+
+/** 收集所有记忆里出现过的标签（去重，按使用次数降序） */
+export function collectTags(memories: SmellMemory[]): string[] {
+  const count = new Map<string, number>();
+  for (const m of memories) {
+    for (const t of m.tags ?? []) {
+      count.set(t, (count.get(t) ?? 0) + 1);
+    }
+  }
+  return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+}
+
 export interface Filters {
   smellType: string;
   season: string;
